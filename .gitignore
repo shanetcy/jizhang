@@ -1,3 +1,6 @@
 node_modules
 dist
 *.tsbuildinfo
+*-debug.log
+# 小猪原图（App 里用的是压缩后的 public/pig.webp）
+存钱罐.png

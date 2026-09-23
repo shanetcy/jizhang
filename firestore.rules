@@ -1,0 +1,44 @@
+rules_version = '2';
+
+// 共同账本的安全规则：只有账本里的两个人能读写。
+// 修改后需要复制到 Firebase 控制台 → Firestore → 规则，点“发布”。
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isMember(hid) {
+      return signedIn()
+        && request.auth.uid in get(/databases/$(database)/documents/households/$(hid)).data.members;
+    }
+
+    match /households/{hid} {
+      allow read: if signedIn() && request.auth.uid in resource.data.members;
+
+      // 创建账本时，成员只能是自己
+      allow create: if signedIn() && request.resource.data.members == [request.auth.uid];
+
+      allow update: if signedIn() && (
+        // 成员可以改昵称和符号，但不能改成员名单
+        (request.auth.uid in resource.data.members
+          && request.resource.data.members == resource.data.members)
+        // 用邀请码加入：账本里只有一个人时，只能把自己加进去
+        || (resource.data.members.size() == 1
+          && request.resource.data.members == resource.data.members.concat([request.auth.uid])
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'profiles']))
+      );
+
+      // 支出、预算、存钱罐取出记录
+      match /{sub}/{id} {
+        allow read, write: if isMember(hid);
+      }
+    }
+
+    // 邀请码 → 账本 id。只能按邀请码读取单条，不能列出全部
+    match /invites/{code} {
+      allow get: if signedIn();
+      allow create: if signedIn() && request.resource.data.keys().hasOnly(['hid']);
+    }
+  }
+}

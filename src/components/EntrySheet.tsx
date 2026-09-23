@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { db, type Txn, type TxnType } from '../db'
+import { deleteExpense, saveExpense, type SharedExpense } from '../cloud'
+import { useShared } from '../SharedContext'
 import { useCategoriesByUsage } from '../hooks'
 import { CURRENCIES, getLastCurrency, parseToCents, setLastCurrency, symbolOf, type Currency } from '../money'
 import { shortDayLabel, today } from '../dates'
@@ -23,28 +25,59 @@ function displayAmount(s: string) {
   return Number(int || 0).toLocaleString('en-US') + (dec !== undefined ? '.' + dec : '')
 }
 
+export type Ledger = 'personal' | 'shared'
+
+export type SheetTarget =
+  | { kind: 'new'; ledger: Ledger }
+  | { kind: 'personal'; txn: Txn }
+  | { kind: 'shared'; exp: SharedExpense }
+
 interface Props {
-  editing: Txn | null // null 表示新记一笔
+  target: SheetTarget
   onClose: () => void
 }
 
-export function EntrySheet({ editing, onClose }: Props) {
-  const [type, setType] = useState<TxnType>(editing?.type ?? 'expense')
-  const [amount, setAmount] = useState(editing ? String(editing.amount / 100) : '')
-  const [currency, setCurrency] = useState<Currency>(editing?.currency ?? getLastCurrency())
+interface PickedCategory {
+  id?: number
+  icon: string
+  name: string
+}
+
+export function EntrySheet({ target, onClose }: Props) {
+  const { user, household } = useShared()
+  const txn = target.kind === 'personal' ? target.txn : null
+  const exp = target.kind === 'shared' ? target.exp : null
+  const canShare = Boolean(user && household)
+
+  const [ledger, setLedger] = useState<Ledger>(
+    target.kind === 'new' ? (target.ledger === 'shared' && canShare ? 'shared' : 'personal') : target.kind,
+  )
+  const shared = ledger === 'shared'
+
+  const [type, setType] = useState<TxnType>(txn?.type ?? 'expense')
+  const initialAmount = txn?.amount ?? exp?.amount
+  const [amount, setAmount] = useState(initialAmount ? String(initialAmount / 100) : '')
+  const [currency, setCurrency] = useState<Currency>(txn?.currency ?? getLastCurrency())
   const [pickingCurrency, setPickingCurrency] = useState(false)
-  const [categoryId, setCategoryId] = useState<number | null>(editing?.categoryId ?? null)
-  const [date, setDate] = useState(editing?.date ?? today())
-  const [note, setNote] = useState(editing?.note ?? '')
+  const [cat, setCat] = useState<PickedCategory | null>(
+    exp ? { icon: exp.catIcon, name: exp.catName } : txn ? { id: txn.categoryId, icon: '', name: '' } : null,
+  )
+  const [payer, setPayer] = useState(exp?.payer ?? user?.uid ?? '')
+  const [date, setDate] = useState(txn?.date ?? exp?.date ?? today())
+  const [note, setNote] = useState(txn?.note ?? exp?.note ?? '')
   const [error, setError] = useState('')
 
-  const categories = useCategoriesByUsage(type)
+  // 生活费只有支出
+  const effectiveType = shared ? 'expense' : type
+  const categories = useCategoriesByUsage(effectiveType)
 
-  // 分类列表加载好、或切换支出/收入后，默认选中最常用的一个
+  // 还没选分类时，默认选中最常用的一个
   useEffect(() => {
-    if (!categories?.length) return
-    if (!categories.some((c) => c.id === categoryId)) setCategoryId(categories[0].id!)
-  }, [categories, categoryId])
+    if (!cat && categories?.length) {
+      const c = categories[0]
+      setCat({ id: c.id, icon: c.icon, name: c.name })
+    }
+  }, [cat, categories])
 
   // 按 Esc 关闭
   useEffect(() => {
@@ -54,40 +87,90 @@ export function EntrySheet({ editing, onClose }: Props) {
   }, [onClose])
 
   const cents = parseToCents(amount)
+  const isPicked = (c: { id?: number; icon: string; name: string }) =>
+    shared ? c.icon === cat?.icon && c.name === cat?.name : c.id === cat?.id
 
   async function save() {
     if (cents <= 0) return setError('请输入金额')
-    if (categoryId == null) return setError('请选择分类')
-    const data = { type, amount: cents, currency, categoryId, date, note: note.trim() }
-    if (editing) await db.txns.update(editing.id!, data)
-    else await db.txns.add({ ...data, createdAt: Date.now() })
-    setLastCurrency(currency)
+    if (!cat) return setError('请选择分类')
+    if (shared) {
+      saveExpense(
+        household!.id,
+        {
+          amount: cents,
+          payer,
+          date,
+          note: note.trim(),
+          catIcon: cat.icon,
+          catName: cat.name,
+          createdBy: exp?.createdBy ?? user!.uid,
+          createdAt: exp?.createdAt ?? Date.now(),
+        },
+        exp?.id,
+      )
+    } else {
+      const data = { type, amount: cents, currency, categoryId: cat.id!, date, note: note.trim() }
+      if (txn) await db.txns.update(txn.id!, data)
+      else await db.txns.add({ ...data, createdAt: Date.now() })
+      setLastCurrency(currency)
+    }
     onClose()
   }
 
   async function remove() {
-    if (!editing || !confirm('删除这笔记录？')) return
-    await db.txns.delete(editing.id!)
+    if (!confirm('删除这笔记录？')) return
+    if (exp) deleteExpense(household!.id, exp.id)
+    if (txn) await db.txns.delete(txn.id!)
     onClose()
   }
+
+  const members = household?.members ?? []
 
   return (
     <div className="sheet-backdrop" onClick={onClose}>
       <div
-        className={`sheet cur-${currency}`}
+        className={`sheet ${shared ? 'cur-shared' : `cur-${currency}`}`}
         role="dialog"
-        aria-label={editing ? '编辑记录' : '记一笔'}
+        aria-label={target.kind === 'new' ? '记一笔' : '编辑记录'}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sheet-top">
-          <div className="segmented" role="tablist">
-            {(['expense', 'income'] as const).map((t) => (
-              <button key={t} role="tab" aria-selected={type === t} onClick={() => setType(t)}>
-                {t === 'expense' ? '支出' : '收入'}
-              </button>
-            ))}
-          </div>
-          {editing && (
+          {target.kind === 'new' && canShare && (
+            <div className="segmented" role="tablist" aria-label="记到哪里">
+              {(['personal', 'shared'] as const).map((l) => (
+                <button
+                  key={l}
+                  role="tab"
+                  aria-selected={ledger === l}
+                  onClick={() => {
+                    setLedger(l)
+                    setCat(null)
+                  }}
+                >
+                  {l === 'personal' ? '个人' : '生活费'}
+                </button>
+              ))}
+            </div>
+          )}
+          {!shared && (
+            <div className="segmented" role="tablist" aria-label="支出或收入">
+              {(['expense', 'income'] as const).map((t) => (
+                <button
+                  key={t}
+                  role="tab"
+                  aria-selected={type === t}
+                  onClick={() => {
+                    setType(t)
+                    setCat(null)
+                  }}
+                >
+                  {t === 'expense' ? '支出' : '收入'}
+                </button>
+              ))}
+            </div>
+          )}
+          <span className="spacer" />
+          {target.kind !== 'new' && (
             <button className="text-btn danger" onClick={remove}>
               删除
             </button>
@@ -98,20 +181,24 @@ export function EntrySheet({ editing, onClose }: Props) {
         </div>
 
         <div className="amount-row">
-          <button
-            className="currency-chip"
-            aria-expanded={pickingCurrency}
-            aria-label={`币种：${currency}，点按更换`}
-            onClick={() => setPickingCurrency((v) => !v)}
-          >
-            {symbolOf(currency)} <span aria-hidden>▾</span>
-          </button>
-          <output className={`amount-display ${amount ? '' : 'is-empty'}`}>
-            {displayAmount(amount)}
-          </output>
+          {shared ? (
+            <span className="currency-chip is-fixed" aria-label="欧元">
+              €
+            </span>
+          ) : (
+            <button
+              className="currency-chip"
+              aria-expanded={pickingCurrency}
+              aria-label={`币种：${currency}，点按更换`}
+              onClick={() => setPickingCurrency((v) => !v)}
+            >
+              {symbolOf(currency)} <span aria-hidden>▾</span>
+            </button>
+          )}
+          <output className={`amount-display ${amount ? '' : 'is-empty'}`}>{displayAmount(amount)}</output>
         </div>
 
-        {pickingCurrency && (
+        {pickingCurrency && !shared && (
           <div className="currency-picker">
             {CURRENCIES.map((c) => (
               <button
@@ -130,9 +217,24 @@ export function EntrySheet({ editing, onClose }: Props) {
           </div>
         )}
 
+        {shared && members.length > 1 && (
+          <div className="payer-row" role="radiogroup" aria-label="谁付的">
+            <span className="payer-label">谁付的</span>
+            {members.map((uid) => {
+              const p = household!.profiles[uid]
+              return (
+                <button key={uid} role="radio" aria-checked={payer === uid} onClick={() => setPayer(uid)}>
+                  <span className="emoji">{p?.emoji}</span>
+                  {p?.name}
+                </button>
+              )
+            })}
+          </div>
+        )}
+
         <div className="category-grid">
           {categories?.map((c) => (
-            <button key={c.id} aria-pressed={c.id === categoryId} onClick={() => setCategoryId(c.id!)}>
+            <button key={c.id} aria-pressed={isPicked(c)} onClick={() => setCat({ id: c.id, icon: c.icon, name: c.name })}>
               <span className="emoji">{c.icon}</span>
               <span>{c.name}</span>
             </button>
@@ -168,9 +270,13 @@ export function EntrySheet({ editing, onClose }: Props) {
           ))}
         </div>
 
-        {error && <p className="form-error" role="alert">{error}</p>}
+        {error && (
+          <p className="form-error" role="alert">
+            {error}
+          </p>
+        )}
         <button className="save-btn" onClick={save}>
-          保存
+          {shared ? '记到生活费' : '保存'}
         </button>
       </div>
     </div>

@@ -1,7 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import '@fontsource/bricolage-grotesque/latin-500.css'
-import '@fontsource/bricolage-grotesque/latin-700.css'
+import '@fontsource/fredoka/latin-500.css'
+import '@fontsource/fredoka/latin-600.css'
 import './styles.css'
 import App from './App'
 

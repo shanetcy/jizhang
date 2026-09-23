@@ -9,22 +9,22 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon.svg'],
+      includeAssets: ['favicon.png', 'apple-touch-icon.png'],
       manifest: {
         name: '记账',
         short_name: '记账',
         lang: 'zh-CN',
         display: 'standalone',
         start_url: '.',
-        background_color: '#EDF0EE',
-        theme_color: '#EDF0EE',
+        background_color: '#FFF3EF',
+        theme_color: '#FFF3EF',
         icons: [
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
           { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
-      workbox: { globPatterns: ['**/*.{js,css,html,svg,png,woff2}'] },
+      workbox: { globPatterns: ['**/*.{js,css,html,svg,png,webp,woff2}'] },
     }),
   ],
 })

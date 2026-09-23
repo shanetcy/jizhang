@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { db, exportBackup, importBackup, type TxnType } from '../db'
 import { useCategoriesByUsage } from '../hooks'
 import { today } from '../dates'
+import { AccountSection } from '../components/AccountSection'
 
 interface Props {
   onBack: () => void
@@ -16,6 +17,7 @@ export function SettingsPage({ onBack }: Props) {
         </button>
         <h1>设置</h1>
       </header>
+      <AccountSection />
       <CategorySection />
       <BackupSection />
     </main>
@@ -47,7 +49,7 @@ function CategorySection() {
 
   return (
     <section className="settings-section">
-      <h2>分类</h2>
+      <h2>个人账本分类</h2>
       <div className="segmented" role="tablist">
         {(['expense', 'income'] as const).map((t) => (
           <button key={t} role="tab" aria-selected={type === t} onClick={() => setType(t)}>
@@ -116,8 +118,8 @@ function BackupSection() {
 
   return (
     <section className="settings-section">
-      <h2>备份</h2>
-      <p className="hint">数据只保存在这台手机上。建议定期导出备份，换手机时用“导入备份”恢复。</p>
+      <h2>个人账本备份</h2>
+      <p className="hint">个人账本只保存在这台手机上（生活费和存钱罐在云端，不用备份）。建议定期导出备份，换手机时用“导入备份”恢复。</p>
       <div className="backup-actions">
         <button onClick={doExport}>导出备份</button>
         <button onClick={() => fileRef.current?.click()}>导入备份</button>
