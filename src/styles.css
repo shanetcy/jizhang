@@ -1,0 +1,529 @@
+/* ---------- 颜色 ---------- */
+:root {
+  --bg: #edf0ee; /* 雾面底 */
+  --surface: #f8faf9; /* 面板、按钮底 */
+  --ink: #1c2627; /* 墨色：文字、支出 */
+  --muted: #5f6d6b; /* 次要文字 */
+  --line: #c9d0cd; /* 线灰 */
+  --income: #2e7a55;
+  --danger: #b4412f;
+
+  /* 币种：--c 填充色，--c-text 在底色上的文字色，--c-on 填充色上的文字色 */
+  --EUR: #2b4c9b;
+  --EUR-text: #2b4c9b;
+  --EUR-on: #ffffff;
+  --MYR: #e0a526;
+  --MYR-text: #8a5d00;
+  --MYR-on: #1c2627;
+  --USD: #2e7a55;
+  --USD-text: #2e7a55;
+  --USD-on: #ffffff;
+
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141b1c;
+    --surface: #1e2728;
+    --ink: #e6ecea;
+    --muted: #97a4a1;
+    --line: #34403f;
+    --income: #5fb98a;
+    --danger: #e98270;
+
+    --EUR: #7c9be8;
+    --EUR-text: #9cb3ee;
+    --EUR-on: #141b1c;
+    --MYR: #e8b64a;
+    --MYR-text: #e8b64a;
+    --MYR-on: #141b1c;
+    --USD: #5fb98a;
+    --USD-text: #5fb98a;
+    --USD-on: #141b1c;
+  }
+}
+
+/* 给某一块区域指定当前币种的颜色 */
+.cur-EUR { --cur: var(--EUR); --cur-text: var(--EUR-text); --cur-on: var(--EUR-on); }
+.cur-MYR { --cur: var(--MYR); --cur-text: var(--MYR-text); --cur-on: var(--MYR-on); }
+.cur-USD { --cur: var(--USD); --cur-text: var(--USD-text); --cur-on: var(--USD-on); }
+
+/* ---------- 基础 ---------- */
+* { box-sizing: border-box; }
+
+html, body { margin: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Noto Sans SC', 'Source Han Sans SC', 'Microsoft YaHei', sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+button, input { font: inherit; color: inherit; }
+
+button {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+button:disabled { opacity: 0.35; cursor: default; }
+
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+ul { list-style: none; margin: 0; padding: 0; }
+
+h1, h2, p { margin: 0; }
+
+/* 数字：金额字体 + 等宽数字 */
+.num {
+  font-family: 'Bricolage Grotesque', system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.emoji { font-size: 22px; line-height: 1; }
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--cur);
+  flex: none;
+}
+
+/* ---------- 页面框架 ---------- */
+.page {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: calc(env(safe-area-inset-top) + 8px) 16px calc(env(safe-area-inset-bottom) + 112px);
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 52px;
+}
+
+.page-header h1 { font-size: 20px; font-weight: 600; }
+
+.month-switcher { display: flex; align-items: center; gap: 4px; }
+
+.month-switcher button,
+.icon-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  font-size: 24px;
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+}
+
+.month-switcher h1 { min-width: 7.5em; text-align: center; }
+
+.text-btn { color: var(--muted); padding: 8px 4px; }
+.text-btn.danger { color: var(--danger); }
+
+.empty {
+  color: var(--muted);
+  padding: 48px 0;
+  text-align: center;
+}
+
+/* 分段选择（支出/收入、币种） */
+.segmented {
+  display: inline-flex;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px;
+}
+
+.segmented button {
+  padding: 5px 16px;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.segmented button[aria-selected='true'] {
+  background: var(--ink);
+  color: var(--bg);
+}
+
+/* ---------- 底部导航 ---------- */
+.tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: 6px max(24px, calc(50% - 236px)) calc(env(safe-area-inset-bottom) + 6px);
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid var(--line);
+}
+
+.tabbar > button:not(.add-btn) {
+  height: 48px;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.tabbar > button[aria-current='page'] { color: var(--ink); font-weight: 600; }
+
+.add-btn {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--bg);
+  display: grid;
+  place-items: center;
+  margin-top: -26px;
+  box-shadow: 0 6px 16px -6px color-mix(in srgb, var(--ink) 60%, transparent);
+}
+
+.add-btn:active { transform: scale(0.94); }
+
+/* ---------- 明细页 ---------- */
+.month-summary {
+  padding: 4px 0 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.summary-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.summary-label { font-size: 13px; color: var(--muted); font-weight: 400; }
+
+.summary-income {
+  margin-left: auto;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--income);
+}
+
+.day { padding-top: 20px; }
+
+.day-label {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--muted);
+  padding-bottom: 4px;
+  white-space: pre;
+}
+
+.txn-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  text-align: left;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
+}
+
+.day li:last-child .txn-row { border-bottom: 0; }
+
+.txn-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+.txn-note {
+  font-size: 13px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.txn-amount { font-size: 17px; font-weight: 500; white-space: nowrap; }
+.txn-amount.income { color: var(--income); }
+
+/* ---------- 统计页 ---------- */
+.stats-controls { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 0 20px; }
+
+.stats-total { display: flex; flex-direction: column; padding-bottom: 20px; }
+.stats-total-label { font-size: 13px; color: var(--muted); }
+.stats-total-num { font-size: 40px; font-weight: 700; line-height: 1.15; color: var(--cur-text); }
+
+.bars li { padding: 10px 0; }
+
+.bar-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 6px;
+}
+
+.bar-pct {
+  display: inline-block;
+  min-width: 3.2em;
+  text-align: right;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.bar-track { height: 8px; border-radius: 4px; background: color-mix(in srgb, var(--line) 50%, transparent); }
+.bar-fill { height: 100%; border-radius: 4px; background: var(--cur); min-width: 4px; }
+
+/* ---------- 记账面板 ---------- */
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, #000 35%, transparent);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 10;
+  animation: fade-in 180ms ease-out;
+}
+
+.sheet {
+  width: 100%;
+  max-width: 520px;
+  max-height: 94dvh;
+  overflow-y: auto;
+  background: var(--bg);
+  border-radius: 22px 22px 0 0;
+  padding: 12px 16px calc(env(safe-area-inset-bottom) + 12px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: slide-up 240ms cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+@keyframes fade-in { from { opacity: 0; } }
+@keyframes slide-up { from { transform: translateY(100%); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet, .sheet-backdrop { animation: none; }
+}
+
+.sheet-top { display: flex; align-items: center; gap: 12px; }
+.sheet-top .segmented { margin-right: auto; }
+
+.amount-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0 4px;
+  border-bottom: 2px solid var(--cur);
+}
+
+.currency-chip {
+  flex: none;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--cur-text);
+  font-family: 'Bricolage Grotesque', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 17px;
+}
+
+.currency-chip span { font-size: 11px; color: var(--muted); }
+
+/* 整个 App 最醒目的地方：输入中的金额 */
+.amount-display {
+  flex: 1;
+  text-align: right;
+  font-family: 'Bricolage Grotesque', system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: clamp(44px, 14vw, 64px);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
+
+.amount-display.is-empty { color: var(--line); }
+
+.currency-picker { display: flex; gap: 8px; }
+
+.currency-picker button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 4px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  font-size: 15px;
+}
+
+.currency-picker button[aria-pressed='true'] { border-color: var(--cur); box-shadow: inset 0 0 0 1px var(--cur); }
+
+.category-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+
+.category-grid button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 2px 4px;
+  border-radius: 12px;
+  font-size: 13px;
+  color: var(--muted);
+  border: 1px solid transparent;
+}
+
+.category-grid button[aria-pressed='true'] {
+  background: var(--surface);
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.meta-row { display: flex; gap: 8px; }
+
+.date-chip {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 12px;
+  height: 40px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  font-size: 15px;
+}
+
+.date-chip span { font-size: 11px; color: var(--muted); }
+
+/* 原生日期选择器透明地盖在按钮上，点按时弹出系统日期选择 */
+.date-chip input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  width: 100%;
+  cursor: pointer;
+}
+
+.date-chip:focus-within { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+.note-input {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: 16px; /* 16px 以下 iPhone 会自动放大页面 */
+}
+
+.note-input::placeholder { color: var(--muted); }
+
+.keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.keypad button {
+  height: 52px;
+  border-radius: 12px;
+  background: var(--surface);
+  font-family: 'Bricolage Grotesque', system-ui, sans-serif;
+  font-size: 24px;
+  font-weight: 500;
+}
+
+.keypad button:active { background: var(--line); }
+
+.form-error { color: var(--danger); font-size: 14px; text-align: center; }
+
+.save-btn {
+  height: 54px;
+  border-radius: 14px;
+  background: var(--cur);
+  color: var(--cur-on);
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.save-btn:active { filter: brightness(0.92); }
+
+/* ---------- 设置页 ---------- */
+.settings .page-header { justify-content: flex-start; gap: 8px; }
+.back-btn { font-size: 16px; }
+
+.settings-section {
+  padding: 20px 0;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.settings-section:last-child { border-bottom: 0; }
+.settings-section h2 { font-size: 17px; font-weight: 600; }
+
+.cat-list { width: 100%; }
+
+.cat-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
+}
+
+.cat-name { flex: 1; }
+
+.cat-add { display: flex; gap: 8px; width: 100%; }
+
+.cat-add input {
+  height: 44px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: 16px;
+  min-width: 0;
+  flex: 1;
+}
+
+.cat-add .cat-add-icon { flex: none; width: 56px; text-align: center; }
+
+.cat-add button,
+.backup-actions button {
+  height: 44px;
+  padding: 0 18px;
+  border-radius: 12px;
+  background: var(--ink);
+  color: var(--bg);
+  font-weight: 600;
+}
+
+.backup-actions { display: flex; gap: 8px; }
+.backup-actions button:last-of-type { background: var(--surface); color: var(--ink); border: 1px solid var(--line); }
+
+.hint { color: var(--muted); font-size: 14px; }
